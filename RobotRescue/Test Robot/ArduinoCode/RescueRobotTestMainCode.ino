@@ -1,32 +1,42 @@
 #include <MeMegaPi.h>
+
 #include <Wire.h>
 
-/* STATES */
+
+
+/* Состояния робота */
 
 #define STATE_UP 0
-#define STATE_BOTTOM 1
+
 #define STATE_TURN_RIGHT 2
+
 #define STATE_TURN_LEFT 3
+
+#define STATE_BOTTOM 4
+
+
 
 #define CONSTANT_DOWN_SPEED 2
 
+
+
 // ******** //
 
-
-
-// first motor data
+// Данные первого мотора
 
 const byte NE1 = 31;
+
 const byte interruptPin1 = 18;
+
 MeMegaPiDCMotor firstMotor(PORT1B);
-int firstMotorSpeed = 100;
 
-// ******** //
-
+int speedRobot = 255;
 
 
 
-// second motor data
+
+
+// Данные второго мотора
 
 const byte NE2 = 38;
 
@@ -34,42 +44,30 @@ const byte interruptPin2 = 19;
 
 MeMegaPiDCMotor secondMotor(PORT2B);
 
-int secondMotorSpeed = 100;
 
-// ******** //
 
-// Line Follower
+// Line Follower and Ultrasonic Sensor
+
 MeLineFollower lineFinder(PORT_6);
 
-byte stateDriversRobot = STATE_UP; // state of the robot in this moment
+MeUltrasonicSensor sensorDistation(PORT_7);
 
 
 
-// *** MOTORS CONTROL  **** //
+byte stateDriversRobot = STATE_UP; // хранение состояния робота
+
+
+
+// *** Функции управления положение робота  **** //
 
 void goForward(){
 
   stateDriversRobot = STATE_UP;
 
-  
-
-  firstMotor.run(firstMotorSpeed);
-
-  secondMotor.run(secondMotorSpeed);
-
-}
 
 
-
-void goBack(){
-
-  stateDriversRobot = STATE_BOTTOM;
-
-  
-
-  firstMotor.run(-firstMotorSpeed);
-
-  secondMotor.run(-secondMotorSpeed);
+  firstMotor.run(-speedRobot);
+  secondMotor.run(+speedRobot);
 
 }
 
@@ -78,11 +76,9 @@ void goBack(){
 void turnRight(){
 
   stateDriversRobot = STATE_TURN_RIGHT;
-
   
-
-  firstMotor.run(firstMotorSpeed);
-  secondMotor.run(secondMotorSpeed / CONSTANT_DOWN_SPEED);
+  firstMotor.run(+speedRobot);
+  secondMotor.run(-speedRobot / CONSTANT_DOWN_SPEED);
 
 }
 
@@ -92,32 +88,113 @@ void turnLeft(){
 
   stateDriversRobot = STATE_TURN_LEFT;
 
-  firstMotor.run(firstMotorSpeed / CONSTANT_DOWN_SPEED);
-  secondMotor.run(secondMotorSpeed);
+  firstMotor.run(speedRobot / CONSTANT_DOWN_SPEED);
+
+  secondMotor.run(speedRobot);
 
 }
-// *main method, set settings
+
+
+
+void goBack(){
+
+  stateDriversRobot = STATE_BOTTOM;
+
+
+
+  firstMotor.run(-speedRobot);
+
+  secondMotor.run(-speedRobot);
+
+}
+
+void stopRobot(){
+  firstMotor.run(0);
+  secondMotor.run(0);
+}
+
+
+
+// *Функции получения информации с датчиков
+
+int getInformationFromSensorLine(){
+  int valueSensorLine = lineFinder.readSensors();
+  byte state;
+
+
+
+  switch (valueSensorLine){
+
+    case S1_IN_S2_IN: state = STATE_UP; break;
+
+    case S1_OUT_S2_IN: state = STATE_TURN_RIGHT; break;
+
+    default: state = STATE_TURN_LEFT; break;
+
+  }
+
+
+
+  if (state == stateDriversRobot) return;
+
+
+
+  switch(state){
+
+    case STATE_UP: goForward(); break;
+
+    case STATE_TURN_RIGHT: turnRight(); break;
+
+    case STATE_TURN_LEFT: turnLeft(); break;
+
+    default: break;
+
+  }
+
+}
+
+
+
+int getInformationFromUSensor(){
+
+  int value = sensorDistation.distanceCm();
+
+  return value;
+
+}
+
+
+void controlUltraSonicSensor(){
+
+  int distanceRobot = getInformationFromUSensor();
+
+  if (distanceRobot > 25){
+    goForward();
+    delay(100);
+  } else {
+    stopRobot();
+    delay(100);
+    turnRight();
+    delay(100);    
+  }
+
+}
+
+
 
 void setup(){
+
   pinMode(NE1, INPUT);
   pinMode(NE2, INPUT);
   Serial.begin(9600);
+
+  goForward();
+
 }
 
 
 
-// infinity ...
-
 void loop(){
-int lineSensorValue = lineFinder.readSensors();
-  
-  switch(lineSensorValue){
-    case S1_IN_S2_IN: goForward(); Serial.println("GO forward"); break;
-    case S1_OUT_S2_IN: turnRight(); Serial.println("Turn right"); break;
-    case S1_IN_S2_OUT: turnLeft(); Serial.println("turn left");break;
-    case S1_OUT_S2_OUT: goForward();  Serial.println("GO back");break;
-    default:break;
-  }
-
-  delay(100);
+  controlUltraSonicSensor();
+  delay(200);
 }
