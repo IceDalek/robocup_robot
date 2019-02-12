@@ -1,4 +1,5 @@
 #include <Encoder.h>
+#include <SoftwareSerial.h>
 
 #define SPEED_FIRST_MOTOR 5
 #define DIR_FIRST_MOTOR 4
@@ -7,9 +8,10 @@
 #define DIR_SECOND_MOTOR 7
 
 int speedMotors = 255;
-
-Encoder myEnc(2,3);
+Encoder myEncoder(2,3);
 long oldPosition = -999;
+
+SoftwareSerial firstSerial(0, 1);
 
 void stopGoing(int firstSpeedMotor, int secondSpeedMotor){
   analogWrite(firstSpeedMotor, 0);
@@ -46,6 +48,7 @@ void turnRight(int firstSpeedMotor, int secondSpeedMotor, int dirFirstMotor, int
 
 void setup(){
   Serial.begin(9600);
+  firstSerial.begin(9600);
 
   for (int counterMotors = 4; counterMotors < 8; counterMotors++){
     pinMode(counterMotors, OUTPUT);
@@ -55,17 +58,28 @@ void setup(){
 }
 
 void loop(){
-  if (Serial.available() > 0){
-    int valueForMotors = Serial.read();
-
-    switch (valueForMotors){
-      case 0: forward(SPEED_FIRST_MOTOR, SPEED_SECOND_MOTOR, DIR_FIRST_MOTOR, DIR_SECOND_MOTOR); break;
-      case 1: back(SPEED_FIRST_MOTOR, SPEED_SECOND_MOTOR, DIR_FIRST_MOTOR, DIR_SECOND_MOTOR); break;
-      case 2: turnLeft(SPEED_FIRST_MOTOR, SPEED_SECOND_MOTOR, DIR_FIRST_MOTOR, DIR_SECOND_MOTOR); break;
-      case 3: turnRight(SPEED_FIRST_MOTOR, SPEED_SECOND_MOTOR, DIR_FIRST_MOTOR, DIR_SECOND_MOTOR); break;
-      case 4: stopGoing(SPEED_FIRST_MOTOR, SPEED_SECOND_MOTOR); break;
-      default: break;
+  if (Serial.available()){
+    while (firstSerial.available()){
+      int valueForMotors = firstSerial.read();
+      firstSerial.println(valueForMotors);
+      switch (valueForMotors){
+        case 0: forward(SPEED_FIRST_MOTOR, SPEED_SECOND_MOTOR, DIR_FIRST_MOTOR, DIR_SECOND_MOTOR); 
+                Serial.println("FORWARD");
+        break;
+        case 1: back(SPEED_FIRST_MOTOR, SPEED_SECOND_MOTOR, DIR_FIRST_MOTOR, DIR_SECOND_MOTOR);
+                Serial.println("BACK");
+        break;
+        case 2: turnLeft(SPEED_FIRST_MOTOR, SPEED_SECOND_MOTOR, DIR_FIRST_MOTOR, DIR_SECOND_MOTOR);
+                Serial.println("TURN LEFT");
+        case 3: turnRight(SPEED_FIRST_MOTOR, SPEED_SECOND_MOTOR, DIR_FIRST_MOTOR, DIR_SECOND_MOTOR); 
+                Serial.println("TURN RIGHT");
+        break;
+        default: Serial.println("Stop going..."); 
+                 stopGoing(DIR_FIRST_MOTOR, DIR_SECOND_MOTOR);
+        break;
+      }
     }
+    delay(1000);
   }
 }
 
